@@ -1,0 +1,69 @@
+version: "2.4"
+
+services:
+  elixir:
+    build:
+      context: .
+      target: development
+    entrypoint: mix
+    command: develop
+    working_dir: /code
+    env_file: .env
+    environment:
+      HOME: /code
+    volumes:
+      - .:/code
+    ports:
+      - 4001:4001
+    depends_on:
+      chronograf:
+        condition: service_started
+      influxdb:
+        condition: service_started
+      telegraf:
+        condition: service_started
+      grafana:
+        condition: service_started
+      jaeger:
+        condition: service_started
+
+  influxdb:
+    image: influxdb:1.7
+    volumes:
+      - ./opt/influxdb/schemas.txt:/tmp/schemas.txt
+    healthcheck:
+      test: bash -c "</dev/tcp/localhost/8086"
+
+  chronograf:
+    image: chronograf:1.7
+    command: chronograf --influxdb-url=http://influxdb:8086 --kapacitor-url=http://kapacitor:9092
+    ports:
+      - 8888:8888
+    depends_on:
+      influxdb:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - 3000:3000
+
+  telegraf:
+    image: telegraf:1.9
+    volumes:
+      - ./opt/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf
+    depends_on:
+      - influxdb
+
+  jaeger:
+    image: quay.io/influxdb/jaeger-all-in-one-influxdb
+    ports:
+      - 16686:16686
+    command:
+      - -grpc-storage-plugin.binary .jaeger-influxdb
+    environment:
+      SPAN_STORAGE_TYPE: grpc-plugin
+      GRPC_STORAGE_PLUGIN_BINARY: /go/bin/jaeger-influxdb-linux
+      INFLUXDB_HOST: http://influxdb:8086
+      INFLUXDB_DATABASE: tracing
+      INFLUXDB_RETENTION_POLICY: tracing

@@ -1,0 +1,14 @@
+.cache/
+.elixir_ls/
+.fetch/
+.hex/
+.mix/
+_build/
+deps/
+doc/
+mix/
+*.ez
+.bash_history
+calculator-*.tar
+erl_crash.dump
+mix.lock
